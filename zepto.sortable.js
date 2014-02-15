@@ -139,9 +139,8 @@ $.fn.sortable = function( options ) {
       }
       return false;
     };
-
     items.on('dragover.h5s dragenter.h5s drop.h5s', onDragMoving);
-    // $().push([this, placeholder]).on('dragover.h5s dragenter.h5s drop.h5s', onDragMoving);
+    $([this, placeholder]).on('dragover.h5s dragenter.h5s drop.h5s', onDragMoving);
   });
 };
 })( Zepto );
