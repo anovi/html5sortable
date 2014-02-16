@@ -1,20 +1,16 @@
-/*
- * HTML5 Sortable jQuery Plugin
- * http://farhadi.ir/projects/html5sortable
- * 
- * Copyright 2012, Ali Farhadi
- * Released under the MIT license.
- */
 (function($) {
+
 var dragging, placeholders = $();
 
 var isOneOfThem = function( elem, items) {
   var element = elem.nodeType ? elem : elem[0];
-  return $.fn.jquery ? items.is( elem ) : $.inArray( element, items ) >= 0;
+  return $.inArray( element, items ) >= 0;
 };
 
 $.fn.zepto = true;
+
 $.fn._initialPush = $.fn.push;
+
 $.fn.push = function( elem ) {
   var set = this;
   if (elem instanceof Array) {
@@ -31,116 +27,147 @@ $.fn.push = function( elem ) {
   return this;
 };
 
-if (!$.fn.jquery) {
-  $.fn.detach = $.fn.remove;
+
+function Plugin( element, options ) {
+  this.el       = element;
+  this.$el      = $( element );
+  this.isHandle = false;
+  this.options  = $.extend({
+    connectWith: false
+  }, options);
+  this.items = $( element ).children( this.options.items );
+  this.placeholder = $('<' + (/^ul|ol$/i.test(element.tagName) ? 'li' : 'div') + ' class="sortable-placeholder">');
+  placeholders = placeholders.push( this.placeholder );
+  this.$el.data('h5selectable', this);
+  if (this.options.connectWith) {
+    $( this.options.connectWith ).data( 'h5selectable_connectWith', this.options.connectWith );
+    this.$el.data( 'h5selectable_connectWith', this.options.connectWith );
+  }
+  this._init();
 }
 
 
-$.fn.sortable = function( options ) {
-  var method = String(options);
-  
-  options = $.extend({
-    connectWith: false
-  }, options);
-
-  return this.each(function() {
-    var items, isHandle, index, placeholder;
-    
-    if (/^enable|disable|destroy$/.test(method)) {
-      items = $(this).children($(this).data('items')).attr('draggable', method === 'enable');
-      if (method === 'destroy') {
-        items
-          .push( this )
-          .removeData( 'connectWith items' )
-          .off( 'dragstart.h5s dragend.h5s selectstart.h5s dragover.h5s dragenter.h5s drop.h5s' );
-      }
-      return;
-    }
-
-    items = $( this ).children( options.items );
-    placeholder = $('<' + (/^ul|ol$/i.test(this.tagName) ? 'li' : 'div') + ' class="sortable-placeholder">');
-
-    if ( options.handle ) {
-      items.find( options.handle ).mousedown(function() {
-        isHandle = true;
-      }).mouseup(function() {
-        isHandle = false;
-      });
-    }
-    
-    $(this).data('items', options.items);
-    placeholders = placeholders.push( placeholder );
-    if (options.connectWith) {
-      $(options.connectWith).push( this )
-      .data('connectWith', options.connectWith);
-    }
-
-
-    // Handler for dragstart
-    items.attr('draggable', 'true').on('dragstart.h5s', function(e) {
-      if (options.handle && !isHandle) {
-        return false;
-      }
-      isHandle = false;
-      var dt = e.originalEvent ? e.originalEvent.dataTransfer : e.dataTransfer;
-      dt.effectAllowed = 'move';
-      dt.setData('Text', 'dummy');
-      index = (dragging = $(this)).addClass('sortable-dragging').index();
-
-    
-    // Handler for dragend
-    }).on('dragend.h5s', function() {
-      if (!dragging) {
-        return;
-      }
-      dragging.removeClass('sortable-dragging').show();
-      placeholders.detach();
-      if (index !== dragging.index()) {
-        dragging.parent().trigger('sortupdate', {item: dragging});
-      }
-      dragging = null;
-
-    
-    // Handler selectstart
-    }).not('a[href], img').on('selectstart.h5s', function() {
-      if ( this.dragDrop ) { this.dragDrop(); }
-      return false;
+Plugin.prototype._init = function() {
+  var _this = this;
+  if ( this.options.handle ) {
+    this.items.find( this.options.handle ).on( 'mousedown.h5s', function() {
+      _this.isHandle = true;
+    }).on( 'mouseup.h5s', function() {
+      _this.isHandle = false;
     });
+  }
+  this.items.attr('draggable', 'true').on('dragstart.h5s', function(e) {
+    return _this._onDragStart( e, this );
+  });
+  this.items.on('dragend.h5s', function(e) {
+    return _this._onDragEnd( e, this );
+  });
+  this.items.not('a[href], img').on('selectstart.h5s', function() {
+    if ( this.dragDrop ) { this.dragDrop(); }
+    return false;
+  });
+  var onDragHandler = function(e) {
+    return _this._onDrag( e, this );
+  };
+  this.items.on('dragover.h5s dragenter.h5s drop.h5s', onDragHandler);
+  $([this.el, this.placeholder]).on('dragover.h5s dragenter.h5s drop.h5s', onDragHandler);
+};
 
 
-    // Handler for drag enter over and drop
-    var onDragMoving = function(e) {
-      var dt;
+Plugin.prototype._onDragStart = function( e, target ) {
+  var dt;
+  if (this.options.handle && !this.isHandle) { return false; }
+  this.isHandle = false;
+  dt = e.originalEvent ? e.originalEvent.dataTransfer : e.dataTransfer;
+  dt.effectAllowed = 'move';
+  dt.setData('Text', 'dummy');
+  this.index = (dragging = $(target)).addClass('sortable-dragging').index();
+};
 
-      if (!isOneOfThem(dragging[0], items) && options.connectWith !== $(dragging).parent().data('connectWith')) {
-        return true;
-      }
-      if (e.type === 'drop') {
-        e.stopPropagation();
-        placeholders.filter(':visible').after(dragging);
-        dragging.trigger('dragend.h5s');
-        return false;
-      }
-      dt = e.originalEvent ? e.originalEvent.dataTransfer : e.dataTransfer;
-      e.preventDefault();
-      dt.dropEffect = 'move';
-      
-      if ( isOneOfThem(this, items) ) {
-        if (options.forcePlaceholderSize) {
-          placeholder.height( dragging.height() );
-        }
-        dragging.hide();
-        $( this )[placeholder.index() < $(this).index() ? 'after' : 'before']( placeholder );
-        placeholders.not(placeholder).detach();
 
-      } else if (!isOneOfThem(this, placeholders) && !$(this).children(options.items).length) {
-        placeholders.detach();
-        $(this).append( placeholder );
-      }
-      return false;
-    };
-    items.on('dragover.h5s dragenter.h5s drop.h5s', onDragMoving);
-    $([this, placeholder]).on('dragover.h5s dragenter.h5s drop.h5s', onDragMoving);
+Plugin.prototype._onDragEnd = function() {
+  if (!dragging) { return; }
+  dragging.removeClass('sortable-dragging').show();
+  placeholders.remove();
+  if (this.index !== dragging.index()) {
+    dragging.parent().trigger('sortupdate', {item: dragging});
+  }
+  dragging = null;
+};
+
+
+Plugin.prototype._onDrag = function( e, target ) {
+  var dt;
+  if (
+    !isOneOfThem(dragging[0], this.items) && 
+    this.options.connectWith !== $(dragging).parent().data('h5selectable_connectWith')
+  ) { return true; }
+  if (e.type === 'drop') {
+    e.stopPropagation();
+    placeholders.filter(':visible').after(dragging);
+    dragging.trigger('dragend.h5s');
+    return false;
+  }
+  dt = e.originalEvent ? e.originalEvent.dataTransfer : e.dataTransfer;
+  e.preventDefault();
+  dt.dropEffect = 'move';
+  if ( isOneOfThem( target, this.items) ) {
+    if (this.options.forcePlaceholderSize) {
+      this.placeholder.height( dragging.height() );
+    }
+    dragging.hide();
+    $( target )[this.placeholder.index() < $( target ).index() ? 'after' : 'before']( this.placeholder );
+    placeholders.not(this.placeholder).remove();
+
+  } else if (!isOneOfThem( target, placeholders) && !$( target ).children(this.options.items).length) {
+    placeholders.remove();
+    $( target ).append( this.placeholder );
+  }
+  return false;
+};
+
+
+Plugin.prototype.destroy = function() {
+  this.$el.removeData( 'h5selectable_connectWith h5selectable' );
+  this.items.removeData( 'h5selectable_connectWith' );
+  this.items.find( this.options.handle ).off('mousedown.h5s mouseup.h5s');
+  this.items.off( 'dragstart.h5s dragend.h5s selectstart.h5s dragover.h5s dragenter.h5s drop.h5s' );  
+  $([this.el, this.placeholder]).off('dragover.h5s dragenter.h5s drop.h5s');
+};
+
+
+Plugin.prototype.enable = function() {
+  this.items.attr('draggable', true);
+};
+
+
+Plugin.prototype.disable = function() {
+  this.items.attr('draggable', false);
+};
+
+
+Plugin._callPublicMethod = function( method ) {
+  var publicMethod, args, _this = $(this).data('h5selectable');
+  if( null === _this || void 0 === _this ) {
+    throw new Error( 'Element ' + this[0] + ' has no plugin selectable.' );
+  }
+  publicMethod = _this[method];
+  if ( publicMethod && $.isFunction( publicMethod ) && method.charAt(0) !== '_' ) {
+    args = Array.prototype.slice.call( arguments );
+    args.shift();
+    return publicMethod.apply( _this, args );
+  }
+  throw new Error( 'Plugin selectable has no method \"' + method + '\"' );
+};
+
+
+$.fn.sortable = function( options ) {
+  return this.each( function(key, elem) {
+    if( options && options.charAt ) {
+      return Plugin._callPublicMethod.apply( this, arguments );
+    }
+    if (!$(this).data('h5selectable')) { new Plugin(elem, options); }
   });
 };
+
 })( Zepto );
