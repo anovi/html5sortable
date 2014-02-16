@@ -35,9 +35,9 @@ function Plugin( element, options ) {
   this.options  = $.extend({
     connectWith: false
   }, options);
-  this.items = $( element ).children( this.options.items );
+  this.items       = $( element ).children( this.options.items );
   this.placeholder = $('<' + (/^ul|ol$/i.test(element.tagName) ? 'li' : 'div') + ' class="sortable-placeholder">');
-  placeholders = placeholders.push( this.placeholder );
+  placeholders     = placeholders.push( this.placeholder );
   this.$el.data('h5selectable', this);
   if (this.options.connectWith) {
     $( this.options.connectWith ).data( 'h5selectable_connectWith', this.options.connectWith );
@@ -97,7 +97,7 @@ Plugin.prototype._onDragEnd = function() {
 
 
 Plugin.prototype._onDrag = function( e, target ) {
-  var dt;
+  var dt, $target;
   if (
     !isOneOfThem(dragging[0], this.items) && 
     this.options.connectWith !== $(dragging).parent().data('h5selectable_connectWith')
@@ -111,17 +111,18 @@ Plugin.prototype._onDrag = function( e, target ) {
   dt = e.originalEvent ? e.originalEvent.dataTransfer : e.dataTransfer;
   e.preventDefault();
   dt.dropEffect = 'move';
+  $target = $(target);
   if ( isOneOfThem( target, this.items) ) {
     if (this.options.forcePlaceholderSize) {
       this.placeholder.height( dragging.height() );
     }
     dragging.hide();
-    $( target )[this.placeholder.index() < $( target ).index() ? 'after' : 'before']( this.placeholder );
+    $target[this.placeholder.index() < $target.index() ? 'after' : 'before']( this.placeholder );
     placeholders.not(this.placeholder).remove();
 
-  } else if (!isOneOfThem( target, placeholders) && !$( target ).children(this.options.items).length) {
+  } else if ( !isOneOfThem(target, placeholders) && !$target.children(this.options.items).length ) {
     placeholders.remove();
-    $( target ).append( this.placeholder );
+    $target.append( this.placeholder );
   }
   return false;
 };
