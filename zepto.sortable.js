@@ -27,14 +27,26 @@ $.fn.push = function( elem ) {
   return this;
 };
 
+var defaults = {
+  // cursorAt
+  // handle
+  // appendTo: 'parent',
+  helper: false,
+  connectWith: false,
+  forcePlaceholderSize: false
+  // forceHelperSize
+  // opacity
+  // tolerance
+    // "intersect": The item overlaps the other item by at least 50%.
+    // "pointer": The mouse pointer overlaps the other item.
+};
+
 
 function Plugin( element, options ) {
-  this.el       = element;
-  this.$el      = $( element );
-  this.isHandle = false;
-  this.options  = $.extend({
-    connectWith: false
-  }, options);
+  this.el          = element;
+  this.$el         = $( element );
+  this.isHandle    = false;
+  this.options     = $.extend( {}, defaults, options );
   this.items       = $( element ).children( this.options.items );
   this.placeholder = $('<' + (/^ul|ol$/i.test(element.tagName) ? 'li' : 'div') + ' class="sortable-placeholder">');
   placeholders     = placeholders.push( this.placeholder );
@@ -82,6 +94,16 @@ Plugin.prototype._onDragStart = function( e, target ) {
   dt.effectAllowed = 'move';
   dt.setData('Text', 'dummy');
   this.index = (dragging = $(target)).addClass('sortable-dragging').index();
+  // Set helper
+  if ( this.options.helper ) {
+    var top = this.options.cursorAt ? this.options.cursorAt.top : null,
+        left = this.options.cursorAt ? this.options.cursorAt.left : null,
+        helper = this.options.helper( target );
+    // $( helper ).appendTo( (this.options.appendTo==='parent' ? this.el : this.options.appendTo) );
+    dt.setDragImage( helper, left, top );
+  } else if ( this.options.cursorAt ) {
+    dt.setDragImage( target, this.options.cursorAt.left, this.options.cursorAt.top );
+  }
 };
 
 
