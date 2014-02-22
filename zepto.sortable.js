@@ -1,6 +1,6 @@
 (function($) {
 
-var dragging, placeholders = $();
+var dragging, draggingHeight, draggingOffsetFromCenter, placeholders = $();
 
 var isOneOfThem = function( elem, items) {
   var element = elem.nodeType ? elem : elem[0];
@@ -30,15 +30,10 @@ $.fn.push = function( elem ) {
 var defaults = {
   // cursorAt
   // handle
-  // appendTo: 'parent',
   helper: false,
   connectWith: false,
-  forcePlaceholderSize: false
-  // forceHelperSize
-  // opacity
-  // tolerance
-    // "intersect": The item overlaps the other item by at least 50%.
-    // "pointer": The mouse pointer overlaps the other item.
+  forcePlaceholderSize: false,
+  tolerance: 'intersect'
 };
 
 
@@ -48,12 +43,12 @@ function Plugin( element, options ) {
   this.isHandle    = false;
   this.options     = $.extend( {}, defaults, options );
   this.items       = $( element ).children( this.options.items );
-  this.placeholder = $('<' + (/^ul|ol$/i.test(element.tagName) ? 'li' : 'div') + ' class="sortable-placeholder">');
+  this.placeholder = $('<' + (/^ul|ol$/i.test(element.tagName) ? 'li' : 'div') + ' class="h5sortable-placeholder">');
   placeholders     = placeholders.push( this.placeholder );
-  this.$el.data('h5selectable', this);
+  this.$el.data('h5sortable', this);
   if (this.options.connectWith) {
-    $( this.options.connectWith ).data( 'h5selectable_connectWith', this.options.connectWith );
-    this.$el.data( 'h5selectable_connectWith', this.options.connectWith );
+    $( this.options.connectWith ).data( 'h5sortable_connectWith', this.options.connectWith );
+    this.$el.data( 'h5sortable_connectWith', this.options.connectWith );
   }
   this._init();
 }
@@ -68,6 +63,10 @@ Plugin.prototype._init = function() {
       _this.isHandle = false;
     });
   }
+  this.$el.on('mousedown.h5s', (this.options.items||'.h5sortable > *'), function(e) {
+    var offset = $( e.currentTarget ).offset();
+    draggingOffsetFromCenter = offset.height/2 - (e.pageY - offset.top);
+  });
   this.items.attr('draggable', 'true').on('dragstart.h5s', function(e) {
     return _this._onDragStart( e, this );
   });
@@ -83,6 +82,7 @@ Plugin.prototype._init = function() {
   };
   this.items.on('dragover.h5s dragenter.h5s drop.h5s', onDragHandler);
   $([this.el, this.placeholder]).on('dragover.h5s dragenter.h5s drop.h5s', onDragHandler);
+  this.$el.addClass('h5sortable');
 };
 
 
@@ -93,13 +93,12 @@ Plugin.prototype._onDragStart = function( e, target ) {
   dt = e.originalEvent ? e.originalEvent.dataTransfer : e.dataTransfer;
   dt.effectAllowed = 'move';
   dt.setData('Text', 'dummy');
-  this.index = (dragging = $(target)).addClass('sortable-dragging').index();
-  // Set helper
+  this.index = (dragging = $(target)).addClass('h5sortable-dragging').index();
+  draggingHeight = dragging.height();
   if ( this.options.helper ) {
     var top = this.options.cursorAt ? this.options.cursorAt.top : null,
         left = this.options.cursorAt ? this.options.cursorAt.left : null,
         helper = this.options.helper( target );
-    // $( helper ).appendTo( (this.options.appendTo==='parent' ? this.el : this.options.appendTo) );
     dt.setDragImage( helper, left, top );
   } else if ( this.options.cursorAt ) {
     dt.setDragImage( target, this.options.cursorAt.left, this.options.cursorAt.top );
@@ -109,7 +108,7 @@ Plugin.prototype._onDragStart = function( e, target ) {
 
 Plugin.prototype._onDragEnd = function() {
   if (!dragging) { return; }
-  dragging.removeClass('sortable-dragging').show();
+  dragging.removeClass('h5sortable-dragging').show();
   placeholders.remove();
   if (this.index !== dragging.index()) {
     dragging.parent().trigger('sortupdate', {item: dragging});
@@ -119,10 +118,10 @@ Plugin.prototype._onDragEnd = function() {
 
 
 Plugin.prototype._onDrag = function( e, target ) {
-  var dt, $target;
+  var dt, $target, targetOffset, condition;
   if (
     !isOneOfThem(dragging[0], this.items) && 
-    this.options.connectWith !== $(dragging).parent().data('h5selectable_connectWith')
+    this.options.connectWith !== $(dragging).parent().data('h5sortable_connectWith')
   ) { return true; }
   if (e.type === 'drop') {
     e.stopPropagation();
@@ -133,13 +132,16 @@ Plugin.prototype._onDrag = function( e, target ) {
   dt = e.originalEvent ? e.originalEvent.dataTransfer : e.dataTransfer;
   e.preventDefault();
   dt.dropEffect = 'move';
+
   $target = $(target);
+  targetOffset = $target.offset();
   if ( isOneOfThem( target, this.items) ) {
-    if (this.options.forcePlaceholderSize) {
-      this.placeholder.height( dragging.height() );
-    }
+    if (this.options.forcePlaceholderSize) { this.placeholder.height(dragging.height()); }
     dragging.hide();
-    $target[this.placeholder.index() < $target.index() ? 'after' : 'before']( this.placeholder );
+    condition = this.options.tolerance === 'intersect' ?
+      (targetOffset.top + targetOffset.height / 2) < (e.pageY + draggingOffsetFromCenter) :
+      (targetOffset.top + targetOffset.height / 2) < e.pageY;
+    $target[condition ? 'after' : 'before']( this.placeholder );
     placeholders.not(this.placeholder).remove();
 
   } else if ( !isOneOfThem(target, placeholders) && !$target.children(this.options.items).length ) {
@@ -151,11 +153,13 @@ Plugin.prototype._onDrag = function( e, target ) {
 
 
 Plugin.prototype.destroy = function() {
-  this.$el.removeData( 'h5selectable_connectWith h5selectable' );
-  this.items.removeData( 'h5selectable_connectWith' );
+  this.$el.removeData( 'h5sortable_connectWith h5sortable' );
+  this.items.removeData( 'h5sortable_connectWith' );
   this.items.find( this.options.handle ).off('mousedown.h5s mouseup.h5s');
   this.items.off( 'dragstart.h5s dragend.h5s selectstart.h5s dragover.h5s dragenter.h5s drop.h5s' );  
   $([this.el, this.placeholder]).off('dragover.h5s dragenter.h5s drop.h5s');
+  this.$el.off('mousedown.h5s');
+  this.$el.removeClass('h5sortable');
 };
 
 
@@ -170,9 +174,9 @@ Plugin.prototype.disable = function() {
 
 
 Plugin._callPublicMethod = function( method ) {
-  var publicMethod, args, _this = $(this).data('h5selectable');
+  var publicMethod, args, _this = $(this).data('h5sortable');
   if( null === _this || void 0 === _this ) {
-    throw new Error( 'Element ' + this[0] + ' has no plugin selectable.' );
+    throw new Error( 'Element ' + this[0] + ' has no plugin h5sortable.' );
   }
   publicMethod = _this[method];
   if ( publicMethod && $.isFunction( publicMethod ) && method.charAt(0) !== '_' ) {
@@ -180,7 +184,7 @@ Plugin._callPublicMethod = function( method ) {
     args.shift();
     return publicMethod.apply( _this, args );
   }
-  throw new Error( 'Plugin selectable has no method \"' + method + '\"' );
+  throw new Error( 'Plugin h5sortable has no method \"' + method + '\"' );
 };
 
 
@@ -189,7 +193,7 @@ $.fn.sortable = function( options ) {
     if( options && options.charAt ) {
       return Plugin._callPublicMethod.apply( this, arguments );
     }
-    if (!$(this).data('h5selectable')) { new Plugin(elem, options); }
+    if (!$(this).data('h5sortable')) { new Plugin(elem, options); }
   });
 };
 
