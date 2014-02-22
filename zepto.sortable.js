@@ -7,25 +7,7 @@ var isOneOfThem = function( elem, items) {
   return $.inArray( element, items ) >= 0;
 };
 
-$.fn.zepto = true;
-
-$.fn._initialPush = $.fn.push;
-
-$.fn.push = function( elem ) {
-  var set = this;
-  if (elem instanceof Array) {
-    for (var i = 0; i < elem.length; i++) {
-      this.push( elem[i] );
-    }
-  } else if ( elem.zepto ) {
-    elem.forEach(function( item ){
-      set._initialPush( item );
-    });
-  } else {
-    this._initialPush( elem );
-  }
-  return this;
-};
+$.fn.zepto = $.fn.zepto || true;
 
 var defaults = {
   // cursorAt
@@ -44,7 +26,7 @@ function Plugin( element, options ) {
   this.options     = $.extend( {}, defaults, options );
   this.items       = $( element ).children( this.options.items );
   this.placeholder = $('<' + (/^ul|ol$/i.test(element.tagName) ? 'li' : 'div') + ' class="h5sortable-placeholder">');
-  placeholders     = placeholders.push( this.placeholder );
+  placeholders.push( this.placeholder[0] );
   this.$el.data('h5sortable', this);
   if (this.options.connectWith) {
     $( this.options.connectWith ).data( 'h5sortable_connectWith', this.options.connectWith );

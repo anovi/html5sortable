@@ -18,7 +18,7 @@
 			width: 460px;
 			font-size: 0.9em;
 		}
-		.connected, .sortable, .exclude, .handles {
+		.connected, .h5sortable, .exclude, .handles {
 			margin: auto;
 			padding: 0;
 			width: 310px;
@@ -29,10 +29,10 @@
 			-ms-user-select: none;
 			user-select: none;
 		}
-		.sortable.grid {
+		.h5sortable.grid {
 			overflow: hidden;
 		}
-		.connected li, .sortable li, .exclude li, .handles li {
+		.connected li, .h5sortable li, .exclude li, .handles li {
 			list-style: none;
 			border: 1px solid #CCC;
 			background: #F6F6F6;
@@ -48,7 +48,7 @@
 		li.disabled {
 			opacity: 0.5;
 		}
-		.sortable.grid li {
+		.h5sortable.grid li {
 			line-height: 80px;
 			float: left;
 			width: 80px;
@@ -70,9 +70,18 @@
 		.connected.no2 {
 			float: right;
 		}
-		li.sortable-placeholder {
-			border: 1px dashed #CCC;
-			background: none;
+		li.h5sortable-placeholder {
+			position: relative;
+			height: 4px;
+			margin: -2px 0;
+			background: #ff0;
+			padding: 0;
+		}
+		.helper {
+			position: absolute;
+			width: 200px;
+			height: 50px;
+			background: red;
 		}
 	</style>
 	<link href='http://fonts.googleapis.com/css?family=Droid+Serif' rel='stylesheet' type='text/css'>
@@ -95,12 +104,12 @@
 	<section>
 		<h2>Sortable List</h2>
 		<ul class="sortable list">
-			<li>Item 1</li>
-			<li>Item 2</li>
-			<li>Item 3</li>
-			<li>Item 4</li>
-			<li>Item 5</li>
-			<li>Item 6</li>
+			<li><span>Item</span> 1</li>
+			<li><span>Item</span> 2</li>
+			<li><span>Item</span> 3</li>
+			<li><span>Item</span> 4</li>
+			<li><span>Item</span> 5</li>
+			<li><span>Item</span> 6</li>
 		</ul>
 	</section>
 	<section>
@@ -169,7 +178,14 @@
 
 
 		$(function() {
-			$('.sortable').sortable();
+			$('.sortable').sortable({
+				// cursorAt: { top: 10, left: -30 }
+				// helper: function(item) {
+				// 	var elem = $('<div>My super helper</div>')[0];
+				// 	elem = $(item).prev();
+				// 	return elem[0];
+				// }
+			});
 			$('.handles').sortable({
 				handle: 'span'
 			});
