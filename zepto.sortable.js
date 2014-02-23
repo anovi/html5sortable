@@ -15,7 +15,8 @@ var defaults = {
   helper: false,
   connectWith: false,
   forcePlaceholderSize: false,
-  tolerance: 'intersect'
+  tolerance: 'intersect',
+  hideDragging: true
 };
 
 
@@ -119,7 +120,7 @@ Plugin.prototype._onDrag = function( e, target ) {
   targetOffset = $target.offset();
   if ( isOneOfThem( target, this.items) ) {
     if (this.options.forcePlaceholderSize) { this.placeholder.height(dragging.height()); }
-    dragging.hide();
+    if (this.options.hideDragging) { dragging.hide(); }
     condition = this.options.tolerance === 'intersect' ?
       (targetOffset.top + targetOffset.height / 2) < (e.pageY + draggingOffsetFromCenter) :
       (targetOffset.top + targetOffset.height / 2) < e.pageY;
