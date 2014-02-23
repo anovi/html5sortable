@@ -94,6 +94,14 @@ Plugin.prototype._onDragStart = function( e, target ) {
     var top = this.options.cursorAt ? this.options.cursorAt.top : null,
         left = this.options.cursorAt ? this.options.cursorAt.left : null,
         helper = this.options.helper( target );
+    if (helper.tagName !== 'IMG') {
+      this.helper = $(helper).css({
+        position: 'absolute',
+        top: 0,
+        left: 0
+      });
+      this.$el.append( helper );
+    }
     dt.setDragImage( helper, left, top );
   } else if ( this.options.cursorAt ) {
     dt.setDragImage( target, this.options.cursorAt.left, this.options.cursorAt.top );
@@ -112,6 +120,10 @@ Plugin.prototype._onDragEnd = function(e) {
   }
   this.dragging = false;
   dragging = null;
+  if (this.helper) {
+    this.helper.remove();
+    delete this.helper;
+  }
   this._callEvent('stop',e);
 };
 
@@ -136,6 +148,7 @@ Plugin.prototype._onDrag = function( e, target ) {
   targetOffset = $target.offset();
   if ( isOneOfThem( target, this.items) ) {
     if (this.options.forcePlaceholderSize) { this.placeholder.height(dragging.height()); }
+    if (this.helper) { this.helper.hide(); }
     if (this.options.hideDragging) { dragging.hide(); }
     if (e.type === 'dragenter' && !this.isHovered) {
       this.isHovered = true;
