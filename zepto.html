@@ -179,12 +179,24 @@
 
 		$(function() {
 			$('.sortable').sortable({
-				// cursorAt: { top: 10, left: -30 }
-				// helper: function(item) {
-				// 	var elem = $('<div>My super helper</div>')[0];
-				// 	elem = $(item).prev();
-				// 	return elem[0];
-				// }
+				hideDragging: false,
+				start: function (e, ui) {
+					console.log('start');
+				},
+				out: function (e, ui) {
+					// console.log(ui);
+					ui.placeholder.hide();
+				},
+				over: function (e, ui) {
+					// console.log(e);
+					ui.placeholder.show();
+				},
+				update: function (e, ui) {
+					console.log('update');
+				},
+				stop: function (e, ui) {
+					console.log('stop');
+				}
 			});
 			$('.handles').sortable({
 				handle: 'span'

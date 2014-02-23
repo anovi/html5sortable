@@ -1,6 +1,6 @@
 (function($) {
 
-var dragging, draggingHeight, draggingOffsetFromCenter, placeholders = $();
+var dragging, draggingOffsetFromCenter, placeholders = $();
 
 var isOneOfThem = function( elem, items) {
   var element = elem.nodeType ? elem : elem[0];
@@ -38,7 +38,7 @@ function Plugin( element, options ) {
 
 
 Plugin.prototype._init = function() {
-  var _this = this;
+  var onDragHandler, _this = this;
   if ( this.options.handle ) {
     this.items.find( this.options.handle ).on( 'mousedown.h5s', function() {
       _this.isHandle = true;
@@ -60,11 +60,22 @@ Plugin.prototype._init = function() {
     if ( this.dragDrop ) { this.dragDrop(); }
     return false;
   });
-  var onDragHandler = function(e) {
+  onDragHandler = function(e) {
     return _this._onDrag( e, this );
   };
   this.items.on('dragover.h5s dragenter.h5s drop.h5s', onDragHandler);
   $([this.el, this.placeholder]).on('dragover.h5s dragenter.h5s drop.h5s', onDragHandler);
+  this.$el.on('dragleave.h5s', function(e) {
+    var draggingOffset;
+    if (
+      _this.dragging && (draggingOffset = _this.$el.offset()) &&
+      !(draggingOffset.top <= e.pageY && e.pageY <= draggingOffset.top+draggingOffset.height &&
+      draggingOffset.left <= e.pageX && e.pageX <= draggingOffset.left+draggingOffset.width)
+    ) {
+      _this.isHovered = false;
+      _this._callEvent( 'out', e );
+    }
+  });
   this.$el.addClass('h5sortable');
 };
 
@@ -73,11 +84,12 @@ Plugin.prototype._onDragStart = function( e, target ) {
   var dt;
   if (this.options.handle && !this.isHandle) { return false; }
   this.isHandle = false;
+  this.dragging = true;
+  this.isHovered = true;
   dt = e.originalEvent ? e.originalEvent.dataTransfer : e.dataTransfer;
   dt.effectAllowed = 'move';
   dt.setData('Text', 'dummy');
   this.index = (dragging = $(target)).addClass('h5sortable-dragging').index();
-  draggingHeight = dragging.height();
   if ( this.options.helper ) {
     var top = this.options.cursorAt ? this.options.cursorAt.top : null,
         left = this.options.cursorAt ? this.options.cursorAt.left : null,
@@ -86,17 +98,21 @@ Plugin.prototype._onDragStart = function( e, target ) {
   } else if ( this.options.cursorAt ) {
     dt.setDragImage( target, this.options.cursorAt.left, this.options.cursorAt.top );
   }
+  this._callEvent('start',e);
 };
 
 
-Plugin.prototype._onDragEnd = function() {
+Plugin.prototype._onDragEnd = function(e) {
   if (!dragging) { return; }
   dragging.removeClass('h5sortable-dragging').show();
   placeholders.remove();
   if (this.index !== dragging.index()) {
     dragging.parent().trigger('sortupdate', {item: dragging});
+    this._callEvent('update',e);
   }
+  this.dragging = false;
   dragging = null;
+  this._callEvent('stop',e);
 };
 
 
@@ -121,6 +137,10 @@ Plugin.prototype._onDrag = function( e, target ) {
   if ( isOneOfThem( target, this.items) ) {
     if (this.options.forcePlaceholderSize) { this.placeholder.height(dragging.height()); }
     if (this.options.hideDragging) { dragging.hide(); }
+    if (e.type === 'dragenter' && !this.isHovered) {
+      this.isHovered = true;
+      this._callEvent('over', e);
+    }
     condition = this.options.tolerance === 'intersect' ?
       (targetOffset.top + targetOffset.height / 2) < (e.pageY + draggingOffsetFromCenter) :
       (targetOffset.top + targetOffset.height / 2) < e.pageY;
@@ -141,7 +161,7 @@ Plugin.prototype.destroy = function() {
   this.items.find( this.options.handle ).off('mousedown.h5s mouseup.h5s');
   this.items.off( 'dragstart.h5s dragend.h5s selectstart.h5s dragover.h5s dragenter.h5s drop.h5s' );  
   $([this.el, this.placeholder]).off('dragover.h5s dragenter.h5s drop.h5s');
-  this.$el.off('mousedown.h5s');
+  this.$el.off('mousedown.h5s dragleave.h5s');
   this.$el.removeClass('h5sortable');
 };
 
@@ -156,13 +176,19 @@ Plugin.prototype.disable = function() {
 };
 
 
+Plugin.prototype._callEvent = function( name, event ) {
+  var ui = {}, cb = this.options[name];
+  if ( !cb ) { return; }
+  if ( this.placeholder ) { ui.placeholder = this.placeholder; }
+  if ( dragging ) { ui.item = dragging; }
+  cb.call( this.$el, event || null, ui );
+};
+
+
 Plugin._callPublicMethod = function( method ) {
   var publicMethod, args, _this = $(this).data('h5sortable');
-  if( null === _this || void 0 === _this ) {
-    throw new Error( 'Element ' + this[0] + ' has no plugin h5sortable.' );
-  }
-  publicMethod = _this[method];
-  if ( publicMethod && $.isFunction( publicMethod ) && method.charAt(0) !== '_' ) {
+  if( null === _this || void 0 === _this ) {throw new Error( 'Element '+this[0]+' has no plugin h5sortable.');}
+  if ( publicMethod = _this[method] && $.isFunction( publicMethod ) && method.charAt(0) !== '_' ) {
     args = Array.prototype.slice.call( arguments );
     args.shift();
     return publicMethod.apply( _this, args );
@@ -173,9 +199,7 @@ Plugin._callPublicMethod = function( method ) {
 
 $.fn.sortable = function( options ) {
   return this.each( function(key, elem) {
-    if( options && options.charAt ) {
-      return Plugin._callPublicMethod.apply( this, arguments );
-    }
+    if( options && options.charAt ) { return Plugin._callPublicMethod.apply( this, arguments ); }
     if (!$(this).data('h5sortable')) { new Plugin(elem, options); }
   });
 };
