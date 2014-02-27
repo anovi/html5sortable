@@ -77,6 +77,7 @@ Plugin.prototype._init = function() {
     }
   });
   this.$el.addClass('h5sortable');
+  this._callEvent('created');
 };
 
 
@@ -93,7 +94,7 @@ Plugin.prototype._onDragStart = function( e, target ) {
   if ( this.options.helper ) {
     var top = this.options.cursorAt ? this.options.cursorAt.top : null,
         left = this.options.cursorAt ? this.options.cursorAt.left : null,
-        helper = this.options.helper( target );
+        helper = this.options.helper( e, target );
     if (helper.tagName !== 'IMG') {
       this.helper = $(helper).css({
         position: 'absolute',
@@ -114,16 +115,16 @@ Plugin.prototype._onDragEnd = function(e) {
   if (!dragging) { return; }
   dragging.removeClass('h5sortable-dragging').show();
   placeholders.remove();
-  if (this.index !== dragging.index()) {
-    dragging.parent().trigger('sortupdate', {item: dragging});
-    this._callEvent('update',e);
-  }
-  this.dragging = false;
-  dragging = null;
   if (this.helper) {
     this.helper.remove();
     delete this.helper;
   }
+  if (this.index !== dragging.index()) {
+    this._callEvent('update',e);
+    dragging.parent().trigger('sortupdate', {item: dragging});
+  }
+  this.dragging = false;
+  dragging = null;
   this._callEvent('stop',e);
 };
 
@@ -200,8 +201,9 @@ Plugin.prototype._callEvent = function( name, event ) {
 
 Plugin._callPublicMethod = function( method ) {
   var publicMethod, args, _this = $(this).data('h5sortable');
-  if( null === _this || void 0 === _this ) {throw new Error( 'Element '+this[0]+' has no plugin h5sortable.');}
-  if ( publicMethod = _this[method] && $.isFunction( publicMethod ) && method.charAt(0) !== '_' ) {
+  if( null === _this || void 0 === _this ) {throw new Error( 'Element '+this+' has no plugin h5sortable.');}
+  publicMethod = _this[method];
+  if ( publicMethod && $.isFunction( publicMethod ) && method.charAt(0) !== '_' ) {
     args = Array.prototype.slice.call( arguments );
     args.shift();
     return publicMethod.apply( _this, args );
@@ -211,8 +213,9 @@ Plugin._callPublicMethod = function( method ) {
 
 
 $.fn.sortable = function( options ) {
+  var args = Array.prototype.slice.call( arguments );
   return this.each( function(key, elem) {
-    if( options && options.charAt ) { return Plugin._callPublicMethod.apply( this, arguments ); }
+    if( options && options.charAt ) { return Plugin._callPublicMethod.apply(this, args); }
     if (!$(this).data('h5sortable')) { new Plugin(elem, options); }
   });
 };
