@@ -1,15 +1,15 @@
 (function($) {
 
-var dragging, draggingOffsetFromCenter, placeholders = $();
-
-var isOneOfThem = function( elem, items) {
-  var element = elem.nodeType ? elem : elem[0];
-  return $.inArray( element, items ) >= 0;
-};
-
 $.fn.zepto = $.fn.zepto || true;
 
-var defaults = {
+var dragging, draggingMode, draggingOffsetFromCenter, placeholders = $(),
+
+isOneOfThem = function( elem, items) {
+  var element = elem.nodeType ? elem : elem[0];
+  return $.inArray( element, items ) >= 0;
+},
+
+defaults = {
   // cursorAt
   // handle
   helper: false,
@@ -25,7 +25,6 @@ function Plugin( element, options ) {
   this.$el         = $( element );
   this.isHandle    = false;
   this.options     = $.extend( {}, defaults, options );
-  this.items       = $( element ).children( this.options.items );
   this.placeholder = $('<' + (/^ul|ol$/i.test(element.tagName) ? 'li' : 'div') + ' class="h5sortable-placeholder">');
   placeholders.push( this.placeholder[0] );
   this.$el.data('h5sortable', this);
@@ -40,30 +39,38 @@ function Plugin( element, options ) {
 Plugin.prototype._init = function() {
   var onDragHandler, _this = this;
   if ( this.options.handle ) {
-    this.items.find( this.options.handle ).on( 'mousedown.h5s', function() {
+    this.$el.on('mousedown.h5s', this.options.handle, function(e) {
       _this.isHandle = true;
-    }).on( 'mouseup.h5s', function() {
+      var offset = $( e.currentTarget ).offset();
+      draggingOffsetFromCenter = offset.height/2 - (e.pageY - offset.top);
+    })
+    .on( 'mouseup.h5s', this.options.handle, function() {
       _this.isHandle = false;
     });
+
+  } else {
+    this.$el.on('mousedown.h5s', (this.options.items||'.h5sortable > *'), function(e) {
+      var offset = $( e.currentTarget ).offset();
+      draggingOffsetFromCenter = offset.height/2 - (e.pageY - offset.top);
+    });
   }
-  this.$el.on('mousedown.h5s', (this.options.items||'.h5sortable > *'), function(e) {
-    var offset = $( e.currentTarget ).offset();
-    draggingOffsetFromCenter = offset.height/2 - (e.pageY - offset.top);
-  });
-  this.items.attr('draggable', 'true').on('dragstart.h5s', function(e) {
+
+  this.$el.children( this.options.items ).attr('draggable', 'true');
+
+  this.$el.on('dragstart.h5s', (this.options.items||'.h5sortable > *'), function(e) {
     return _this._onDragStart( e, this );
   });
-  this.items.on('dragend.h5s', function(e) {
+  this.$el.on('dragend.h5s', (this.options.items||'.h5sortable > *'), function(e) {
     return _this._onDragEnd( e, this );
   });
-  this.items.not('a[href], img').on('selectstart.h5s', function() {
+  this.$el.not('a[href], img').on('selectstart.h5s', function() {
     if ( this.dragDrop ) { this.dragDrop(); }
     return false;
   });
   onDragHandler = function(e) {
     return _this._onDrag( e, this );
   };
-  this.items.on('dragover.h5s dragenter.h5s drop.h5s', onDragHandler);
+  this.$el.on('dragover.h5s dragenter.h5s drop.h5s', (this.options.items||'.h5sortable > *'), onDragHandler);
   $([this.el, this.placeholder]).on('dragover.h5s dragenter.h5s drop.h5s', onDragHandler);
   this.$el.on('dragleave.h5s', function(e) {
     var draggingOffset;
@@ -113,7 +120,7 @@ Plugin.prototype._onDragStart = function( e, target ) {
 
 Plugin.prototype._onDragEnd = function(e) {
   if (!dragging) { return; }
-  dragging.removeClass('h5sortable-dragging').show();
+  dragging.removeClass('h5sortable-dragging').css('display',draggingMode);
   placeholders.remove();
   if (this.helper) {
     this.helper.remove();
@@ -125,14 +132,22 @@ Plugin.prototype._onDragEnd = function(e) {
   }
   this.dragging = false;
   dragging = null;
+  draggingMode = null;
   this._callEvent('stop',e);
+};
+
+
+Plugin.prototype._isOwnItem = function(elem) {
+  var $elem = $(elem),
+  parents = $elem.parents();
+  return isOneOfThem( this.el, parents );
 };
 
 
 Plugin.prototype._onDrag = function( e, target ) {
   var dt, $target, targetOffset, condition;
   if (
-    !isOneOfThem(dragging[0], this.items) && 
+    !this._isOwnItem(dragging[0]) && 
     this.options.connectWith !== $(dragging).parent().data('h5sortable_connectWith')
   ) { return true; }
   if (e.type === 'drop') {
@@ -147,10 +162,13 @@ Plugin.prototype._onDrag = function( e, target ) {
 
   $target = $(target);
   targetOffset = $target.offset();
-  if ( isOneOfThem( target, this.items) ) {
+  if ( this._isOwnItem(target) ) {
     if (this.options.forcePlaceholderSize) { this.placeholder.height(dragging.height()); }
-    if (this.helper) { this.helper.hide(); }
-    if (this.options.hideDragging) { dragging.hide(); }
+    // if (this.helper) { this.helper.hide(); } //what is this?
+    if (this.options.hideDragging) {
+      draggingMode = draggingMode ? draggingMode : dragging.css('display');
+      dragging.css('display','none');
+    }
     if (e.type === 'dragenter' && !this.isHovered) {
       this.isHovered = true;
       this._callEvent('over', e);
@@ -159,35 +177,37 @@ Plugin.prototype._onDrag = function( e, target ) {
       (targetOffset.top + targetOffset.height / 2) < (e.pageY + draggingOffsetFromCenter) :
       (targetOffset.top + targetOffset.height / 2) < e.pageY;
     $target[condition ? 'after' : 'before']( this.placeholder );
+    this.placeholder.show();
     placeholders.not(this.placeholder).remove();
 
   } else if ( !isOneOfThem(target, placeholders) && !$target.children(this.options.items).length ) {
     placeholders.remove();
     $target.append( this.placeholder );
+    this.placeholder.show();
   }
   return false;
 };
 
 
 Plugin.prototype.destroy = function() {
-  this.$el.removeData( 'h5sortable_connectWith h5sortable' );
-  this.items.removeData( 'h5sortable_connectWith' );
-  this.items.find( this.options.handle ).off('mousedown.h5s mouseup.h5s');
-  this.items.off( 'dragstart.h5s dragend.h5s selectstart.h5s dragover.h5s dragenter.h5s drop.h5s' );  
+  this.$el.removeData( 'h5sortable' );
+  if (this.options.connectWith) { $( this.options.connectWith ).push(this.el).removeData('h5sortable_connectWith'); }
+  this.$el.off('mousedown.h5s mouseup.h5s');
+  this.$el.off( 'dragstart.h5s dragend.h5s selectstart.h5s dragover.h5s dragenter.h5s drop.h5s' );  
   $([this.el, this.placeholder]).off('dragover.h5s dragenter.h5s drop.h5s');
   this.$el.off('mousedown.h5s dragleave.h5s');
   this.$el.removeClass('h5sortable');
+  this.placeholder.remove();
+  var index = $.inArray( this.placeholder, this.placeholder );
+  this.placeholder.slice(index, index+1);
+  delete this.placeholder;
 };
 
 
-Plugin.prototype.enable = function() {
-  this.items.attr('draggable', true);
-};
+Plugin.prototype.enable = function() { this.$el.children( this.options.items ).attr('draggable', true); };
 
 
-Plugin.prototype.disable = function() {
-  this.items.attr('draggable', false);
-};
+Plugin.prototype.disable = function() { this.$el.children( this.options.items ).attr('draggable', false); };
 
 
 Plugin.prototype._callEvent = function( name, event ) {
