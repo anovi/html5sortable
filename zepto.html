@@ -32,6 +32,16 @@
 		.h5sortable.grid {
 			overflow: hidden;
 		}
+		.h5sortable.grid .h5sortable-placeholder {
+			float: left;
+			width: 80px;
+			height: 80px;
+			border: 1px dashed #CCC;
+			background: rgba(0,0,0,0.01);
+			margin: 5px;
+			padding: 5px;
+		}
+
 		.connected li, .h5sortable li, .exclude li, .handles li {
 			list-style: none;
 			border: 1px solid #CCC;
@@ -164,7 +174,7 @@
 			<li class="highlight">Item 6</li>
 		</ul>
 	</section>
-	<div id="testHeight" style="width: 200px; height: 100px; border: 5px solid red; position: absolute; top: 200px; left: 200px;"></div>
+	<!-- <div id="testHeight" style="width: 200px; height: 100px; border: 5px solid red; position: absolute; top: 200px; left: 200px;"></div> -->
 
  	<script src="../zepto-master/dist/zepto.js"></script>
 	<script src="zepto.sortable.js"></script>
@@ -178,7 +188,7 @@
 
 
 		$(function() {
-			$('.sortable').sortable({
+			$('.sortable').first().sortable({
 				hideDragging: false,
 				start: function (e, ui) {
 					console.log('start');
@@ -198,6 +208,10 @@
 					console.log('stop');
 				}
 			});
+			$('.grid').sortable({
+				hideDragging: true
+			});
+			
 			$('.handles').sortable({
 				handle: 'span'
 			});
@@ -207,7 +221,9 @@
 			$('.exclude').sortable({
 				items: ':not(.disabled)'
 			});
+			// $('.sortable').sortable('disable');
 		});
+
 	</script>
 </body>
 </html>
